@@ -1,0 +1,7 @@
+Se agrego al programa el uso del pulsador habilitacion, se agrego un menu para interactuar mediante los pulsadores, con seleccion de potencia maxima, minima, potencia de pasos, tiempo de cada paso, y seleccion de minimo a maximo, maximo a minimo o minimo maximo minimo
+
+
+OBSERVACIONES:
+Se saco de programa la interaccion con las salidas al rele
+Mejorar los limites en los maximos y minimos de valores en el menu de valores, al seleccionar el maximo (120KW) se lagea en el regreso al menu
+Cuando se termina de programar queda en el display el mensaje "COMENZANDO", hasta alli termino la programacion de esta version

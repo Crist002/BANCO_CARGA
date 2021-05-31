@@ -1,0 +1,6 @@
+Se agrego la funcion de Atras() que se encuentra funcionando actualmente
+cuando al pulsador habilitacion se lo mantiene presionado un determinado tiempo, se volvera al menu anterior funcionando como un boton de retroceso
+Cuando se vuelve atras del menu manual al inicio se apagan las salidas de los rele, tambien en modo manual se activa y desactiva las salidas con el pulsador habilitar
+
+OBSERVACIONES
+Se debe encontrar una funcion que detenga el proceso de la salida de los reles en caso de emergencia

@@ -1,0 +1,2 @@
+Se sintetizo el programa agregando Arrays en la seccion de habilitacion/desabilitacion de salidas para el rele
+Se implemento en la subrutina Salida la funcion FOR para hacer uso de los Arrays

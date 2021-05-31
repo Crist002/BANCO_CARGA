@@ -1,0 +1,2 @@
+Se sintetizo el programa agregando una matriz 17x9 que contiene las habilitaciones de la salida al rele
+se redujo la subrutina Salida haciendo aun mas practico el uso de las salidas mediante una sola funcion FOR implimentada con la matriz

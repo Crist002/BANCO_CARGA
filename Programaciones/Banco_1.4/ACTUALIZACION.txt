@@ -1,0 +1,1 @@
+Se agrega la subrutina cuenta_cero() al programa, desactivando de esa manera las salidas a los reles por 200ms cuando hace el salto de un paso a otro

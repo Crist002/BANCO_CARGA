@@ -1,0 +1,11 @@
+Se implemento un contador programable con la funcion millis()
+se agrego que los pulsadores al mantenerse cerrados por un determinado tiempo hacen saltos de invertalos segun la programacion
+se saco contenido de desabilitacion de salidas por cada paso
+
+
+
+CONTENIDO A MEJORAR
+Ordenamiento de la subrutina Logica
+Buscar metodos para reducir la funcion IF
+Reorganizar la subrutina Reloj() y Reloj1()
+Se debe desabilitar las salidas por un tiempo determinado para no tener cortocircuitos en el banco de carga

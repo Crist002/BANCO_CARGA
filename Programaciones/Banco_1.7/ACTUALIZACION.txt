@@ -1,0 +1,10 @@
+Todas las opciones del menu son utilizables
+Se comunico las opciones del menu a la salida de los rele
+Se coloco limites en la Opcion del menu para no salir del rango de las opciones
+Tiene un menu de manual o automatico al inicio
+
+
+OBSERVACIONES
+
+Al arrancar el programa con las opciones del banco de carga se visualiza el paso que arranca y abajo las salidas activadas o no para el rele
+se debe buscar una opcion para volver atras en los menus
