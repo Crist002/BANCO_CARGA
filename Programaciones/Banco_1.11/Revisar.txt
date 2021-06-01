@@ -1,0 +1,6 @@
+Programacion con:
+PCF
+shield SD
+Lectura de logica de banco de carga con SD a la salida del PCF y LED con el archivo de texto "Salida.txt"
+IMPORTANTE: Para podeer leer un archivo con SD no debe llevar guion ó guion bajo debido a que no lo puede leer de esa manera
+El archivo Salida.txt tiene codificacion UTF-8
