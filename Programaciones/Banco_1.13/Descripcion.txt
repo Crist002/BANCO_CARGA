@@ -1,0 +1,2 @@
+De la version anterior (1.12) se le añadio el modulo 485 con el protocolo de comunicacion Modbus
+En la SD guarda los datos de:fecha, hora y mensajes recibidos por parte del medidor de energia
