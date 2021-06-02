@@ -1,0 +1,2 @@
+A la version del 1.11 se le agrego el LCD I2C junto con las funciones de guardar hora y fecha
+En caso de que no se detecte el SD o el archivo "Salidas.txt" al inicio, el LCD mostrara dicho mensaje en la pantalla y no iniciara
