@@ -1,0 +1,5 @@
+Se cambio la Arduino Uno por la Arduino Mega debido a problemas de capacidad en la memoria del AtMega328p, se opto por el Atmega 2560 debido a que posee 4 veces mas la capacidad del Atmega328p
+El modulo 485 ahora funciona con Serial2
+Por problemas de conexionado se saco la Shield Dataloger que era compatible con el arduino uno pero no con la mega, y se coloco un modulo de microSD, se saco de la programacion la parte del RTC debido a que no se dispone aun de un modulo de estos
+Se implemento una fuente externa de 5v con el LM2596 por problemas de alimentacion solo con la arduino
+Para el envio de datos por 485, se cambio el tiempo de reposo de 10milisegundos a 50milisegundos por el tiempo de respuesta del medidor de energia hasta que entra el buffer del serial
