@@ -1,0 +1,2 @@
+Se guardan en la SD los valores de tension y corriente de los canales A, B y C
+Se implemento el RTC DS3231 que se comunica por I2C como el anterior
