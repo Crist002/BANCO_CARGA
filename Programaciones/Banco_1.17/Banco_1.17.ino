@@ -1,14 +1,13 @@
+#include <EEPROM.h>
 #include<Wire.h>
 #include <SPI.h>
 #include "RTClib.h"
 #include <SD.h>
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,16,2);
-#include "Arduino.h"
-#include "PCF8574.h"
 //Configuracion del PCF8574
-const byte salidas[8] = {P3, P7, P6, P5, P4, P2, P1, P0};
-PCF8574 pcf8574(0x25);  //Direccion de I2C
+#define PCF1 0x22
+#define PCF2 0x24
 //CONFIGURACION DEL RTC
 RTC_DS3231 rtc;
 DateTime HoraFecha;
@@ -61,19 +60,22 @@ byte abajo[] = {
   B00100
 };
 
-File myFile;
-uint8_t UltPos = 0;
-int pausa = 0;
 
+
+File myFile;
 //Variables Modbus
 byte datT[12];
 byte datC[12];
 int Tension[3];
 int Corriente[3];
+byte InfoTension[]={2,3,0,9,0,6,21,249};  //Tension Canal A,B,C
+byte InfoCorriente[]={2,3,0,15,0,6,245,248};  //Corriente Canal A,B,C
+
 
 boolean leer = true;
 byte set_segundo;
 byte set_minuto;
+byte set_hors;
 
 //Varibales pulsadores
 boolean est_up , est_down , est_left , est_right ;
@@ -99,11 +101,23 @@ byte P_min = 1;
 byte P_max = 1;
 byte P_pas = 1;
 byte P_modo = 1;
+boolean P_modo_franco = 1;
+byte P_sig = 0;
+byte direccion = 0;
+boolean fin = 0;
+boolean ultimo = 0;
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 void setup(){
+  Wire.begin();
+  Wire.beginTransmission(PCF1);
+  Wire.write(0xFF);
+  Wire.endTransmission();
+  Wire.beginTransmission(PCF2);
+  Wire.write(0xFF);
+  Wire.endTransmission();
   pinMode(4, OUTPUT);
   pinMode(5, INPUT);
   pinMode(6, INPUT);
@@ -118,10 +132,7 @@ void setup(){
   lcd.createChar(2, arriba);
   lcd.createChar(3, abajo);
   rtc.begin();    //INICIA EL RTC
-  pcf8574.begin();
-  for (byte u = 0; u < 8; u++) {
-    pcf8574.pinMode(salidas[u], OUTPUT);
-  }
+  
   contenido1= "Iniciando SD ...";
   Visual();
   delay(1000);
@@ -135,13 +146,6 @@ void setup(){
   Visual();
   delay(1000);
   lcd.clear();
-  while(!SD.exists("Salidas.txt")){
-    fila1 = 0;
-    contenido1 = "Falta archivo:";
-    fila2 = 0;
-    contenido2 = "Salidas.txt";
-    Visual2();
-  }
   if(!SD.exists("DATOS.csv")){
       myFile = SD.open("DATOS.csv", FILE_WRITE);
       if (myFile) {
@@ -163,7 +167,7 @@ void setup(){
 void loop(){
   Pulsadores();
   if(menu_conf == true){
-    Ajuste(); 
+    Ajuste();
   }
   if(menu_auto == true){
     Automatico();
@@ -193,6 +197,11 @@ void Lcd_Cursor(){
       paso--;
       if(paso<1){paso = 1;}  
     }
+    if(g_menu == 8){
+      pag_menu = 8;
+      paso--;
+      if(paso>250){paso=0;}
+    }
     if(cursor_fila==1){
       switch(g_menu){
         case 1: pag_menu = 2; cursor_fila = 0; break;
@@ -216,6 +225,11 @@ void Lcd_Cursor(){
       paso++;
       if(paso>3){paso = 3;}
     }
+    if(g_menu == 8){
+      pag_menu = 8;
+      paso++;
+      if(paso>=16){paso=16;}
+    }
     if(cursor_fila == 0){
       switch(g_menu){
         case 2: pag_menu = 1; cursor_fila = 1; break;
@@ -233,7 +247,7 @@ void Lcd_Cursor(){
       case 0:
             switch(cursor_fila){
               case 0: pag_menu = 1; break; 
-              case 1: /*FALTA PONER PARA AUTOMATICO*/ break;
+              case 1: pag_menu = 8; break;
             }
       break;
       case 1:
@@ -268,6 +282,23 @@ void Lcd_Cursor(){
       break;
       case 6: P_modo = paso; pag_menu = 3; cursor_fila = 0;
       break;
+      case 8: lcd.clear();menu_conf = false;menu_manu = true;
+              direccion = 2*paso;
+              byte rele1 = EEPROM.read(direccion);
+              byte rele2 = EEPROM.read(direccion+1);
+              Wire.beginTransmission(PCF1);
+              Wire.write(rele1);
+              Wire.endTransmission();
+              Wire.beginTransmission(PCF2);
+              Wire.write(rele2);
+              Wire.endTransmission();
+              lcd.setCursor(0,0);
+              lcd.print("POT: ");
+              int valor1 = 75*paso;
+              byte ent_valor1 = valor1*0.1;
+              byte un_valor1 = valor1 - (ent_valor1 * 10);
+              lcd.print(ent_valor1);lcd.print(".");lcd.print(un_valor1);lcd.print(" W");
+      break;
     }
     //--------- EST_LEFT ---------
   }else if(est_left == 1){
@@ -284,6 +315,16 @@ void Lcd_Cursor(){
       case 5: pag_menu = 2; cursor_fila = 1; break;
       case 6: pag_menu = 3; cursor_fila = 0; break;
       case 7: pag_menu = 3; cursor_fila = 1; break;
+      case 8: pag_menu = 0; cursor_fila = 1; 
+        byte rele1 = EEPROM.read(0);
+        byte rele2 = EEPROM.read(1);
+        Wire.beginTransmission(PCF1);
+        Wire.write(rele1);
+        Wire.endTransmission();
+        Wire.beginTransmission(PCF2);
+        Wire.write(rele2);
+        Wire.endTransmission();
+      break;
     }
   }
   //--------- CURSOR FILA ---------
@@ -383,16 +424,37 @@ void Lcd_Menu(){
       }
   }else if(pag_menu == 7){
     lcd.clear();
+    menu_conf = false;
+    leer = true;
+    menu_auto = true;
+    ultimo = 0;
+    fin = 0;
+    if(P_modo == 1){
+      P_sig = P_min;
+      direccion = 2*P_min;
+    }else if(P_modo == 2){
+      P_sig = P_max;
+      direccion = 2*P_max;
+    }else if(P_modo == 3){
+      P_sig = P_min;
+      direccion = 2*P_min;
+      P_modo_franco = 1;
+    }
+    
+  }else if(pag_menu == 8){
+    int valor1 = 75*paso;
+    byte ent_valor1 = valor1*0.1;
+    byte un_valor1 = valor1 - (ent_valor1 * 10);
+    lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print(P_min);
-    lcd.setCursor(3,0);
-    lcd.print(P_max);
-    lcd.setCursor(6,0);
-    lcd.print(P_pas);
-    lcd.setCursor(0,1);
-    lcd.print(tiempo);
-    lcd.setCursor(3,1);
-    lcd.print(P_modo);
+    if(paso == 0){
+      lcd.write(2);
+    }else if(paso == 16){
+      lcd.write(3);
+    }else{lcd.write(1);}
+    lcd.setCursor(1,0);
+    lcd.print("POTENCIA: ");
+    lcd.print(ent_valor1);lcd.print(".");lcd.print(un_valor1);
   }
 
   if(pag_menu != 254){
@@ -405,27 +467,110 @@ void Automatico(){
   Lectura_Tiempo();
   Modbus();
   Calculo_modbus();
-  Visual_Modbus();
+  //Visual_Modbus();
   Escritura_SD();
   if(leer == true){
-    LecturaSD();
+    byte rele1 = EEPROM.read(direccion);
+    byte rele2 = EEPROM.read(direccion+1);
+    Wire.beginTransmission(PCF1);
+    Wire.write(rele1);
+    Wire.endTransmission();
+    Wire.beginTransmission(PCF2);
+    Wire.write(rele2);
+    Wire.endTransmission();
     uint8_t segs = HoraFecha.second();
     uint8_t mins = HoraFecha.minute();
-    set_segundo = segs + pausa;
-    set_minuto = mins;
-    if(set_segundo >= 60){
-      set_segundo = set_segundo - 60;
-      set_minuto = set_minuto + 1;
+    uint8_t hors = HoraFecha.hour();
+    set_segundo = segs;
+    set_minuto = mins + tiempo;
+    set_hors = hors;
+    if(set_minuto >= 60){
+      set_minuto = set_minuto - 60;
+      set_hors = set_hors + 1;
     }
     leer = false;
+    if(ultimo == 0){
+      if(P_modo == 1){
+          P_sig = P_sig + P_pas;
+          direccion = 2*P_sig;
+          if(P_sig >= P_max){
+            P_sig = P_max;
+            direccion = 2*P_sig;
+            ultimo = 1;
+          }
+      }else if(P_modo == 2){
+          P_sig = P_sig - P_pas;
+          direccion = 2*P_sig;
+          if((P_sig<=P_min)||(P_sig>240)){
+            P_sig = P_min;
+            direccion = 2*P_sig;
+            ultimo = 1;
+          }
+      }else if(P_modo == 3){
+          if(P_modo_franco == 1){
+              P_sig = P_sig + P_pas;
+              direccion = 2*P_sig;
+              if(P_sig >= P_max){
+                P_sig = P_max;
+                direccion = 2*P_sig;
+                P_modo_franco = 0;
+              }
+          }else if(P_modo_franco == 0){
+              P_sig = P_sig - P_pas;
+              direccion = 2*P_sig;
+              if((P_sig<=P_min)||(P_sig>240)){
+                P_sig = P_min;
+                direccion = 2*P_sig;
+                ultimo = 1;
+              }
+          }
+      }
+    }else{fin = 1;}
   }
-  if((HoraFecha.second()== set_segundo)&&(HoraFecha.minute()== set_minuto)){
-    leer = true;
+  if((HoraFecha.second()== set_segundo)&&(HoraFecha.minute()== set_minuto)&&(HoraFecha.hour() == set_hors)){
+    //Vuelve a repetir el leer
+    if(fin == 1){
+      
+      menu_conf = true;
+      menu_auto = false;
+      menu_manu = false;
+      pag_menu = 0;
+      g_menu = 0;
+      m_cursor = 0;
+      cursor_fila = 0;
+      paso = 1;
+      pag_anterior = 0;
+      byte rele1 = EEPROM.read(0);
+      byte rele2 = EEPROM.read(1);
+      Wire.beginTransmission(PCF1);
+      Wire.write(rele1);
+      Wire.endTransmission();
+      Wire.beginTransmission(PCF2);
+      Wire.write(rele2);
+      Wire.endTransmission();
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("FIN DE SECUENCIA");
+      delay(2000);
+    }else{
+      leer = true;
+    }
   }
 }
 
 void Manual(){
-  
+  Lectura_Tiempo();
+  Modbus();
+  Calculo_modbus();
+  //Visual_Modbus();
+  Escritura_SD();
+  if(est_left == 1){
+      menu_conf = true;
+      menu_auto = false;
+      menu_manu = false;
+      pag_menu = 8;
+      g_menu = 8; 
+  }
 }
 
 
@@ -531,8 +676,6 @@ void Visual2(){    //Configuro lo que se visualizara en el LCD
 }
 
 void Modbus(){
-  byte InfoTension[]={2,3,0,9,0,6,21,249};  //Tension Canal A,B,C
-  byte InfoCorriente[]={2,3,0,15,0,6,245,248};  //Corriente Canal A,B,C
   for(byte f=1 ; f<3 ; f++){
     digitalWrite(4, HIGH);
     if(f==1){
@@ -572,7 +715,6 @@ void Calculo_modbus(){
   int c2;
   byte c3;
   for(byte z=0 ; z<6 ; z++){
-    lcd.clear();
     if(mod == 0){
       a=datT[salto];
       b=datT[1+salto];
@@ -624,54 +766,4 @@ void Visual_Modbus(){
     lcd.setCursor(5*v1,1);
     lcd.print(Corriente[v1]);
   }
-}
-
-void LecturaSD(){
-  myFile = SD.open("Salidas.txt", FILE_READ);//abrimos  el archivo
-  uint16_t totalBytes = myFile.size();
-  String cadena = "";
-
-  if (myFile) {
-    if (UltPos >= totalBytes){UltPos = 0;}
-    myFile.seek(UltPos);
-    //--Leemos una línea de la hoja de texto--------------
-    while (myFile.available()) {
-      char caracter = myFile.read();
-      cadena = cadena + caracter;
-      UltPos = myFile.position();
-      if (caracter == 10) //ASCII de nueva de línea
-      {
-        break;
-      }
-    }
-    //---------------------------------------------------
-    myFile.close(); //cerramos el archivo
-    //Serial.print("Cadena Leida:");
-    //-----------procesamos la cadena------------
-    byte index = 0;
-    char c = cadena[index++];
-    pausa = 0;
-    
-    while (c >= '0' && c <= '9')
-    {
-      pausa = 10 * pausa + (c - '0');
-      c = cadena[index++];
-    }
-    
-    for (byte i=0; i<9; i++){
-      if (i < 8) {
-        if (cadena[index + i * 2] == '1') { pcf8574.digitalWrite(salidas[i], HIGH); }
-        else{ pcf8574.digitalWrite(salidas[i], LOW); }
-      }
-    }
-
-  } else {    //Si no se lee el archivo Salidas.txt  :
-    /*
-    lcd.setCursor(0,0);
-    lcd.print("ERROR EN LEER: ");
-    lcd.setCursor(0,1);
-    lcd.print("Salidas.txt    ");
-    */
-  }
-  pausa = pausa/1000;
 }
