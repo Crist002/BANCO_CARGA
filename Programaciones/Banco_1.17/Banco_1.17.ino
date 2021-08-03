@@ -66,11 +66,16 @@ File myFile;
 //Variables Modbus
 byte datT[12];
 byte datC[12];
+byte datP[12];
 int Tension[3];
 int Corriente[3];
+int Potencia[3];
 byte InfoTension[]={2,3,0,9,0,6,21,249};  //Tension Canal A,B,C
 byte InfoCorriente[]={2,3,0,15,0,6,245,248};  //Corriente Canal A,B,C
-
+byte InfoPotencia[]={2,3,0,39,0,6,117,240}; //Potencia Canal A,B,C
+uint32_t m;
+int16_t ex;
+byte a,b,c,d;
 
 boolean leer = true;
 byte set_segundo;
@@ -149,7 +154,7 @@ void setup(){
   if(!SD.exists("DATOS.csv")){
       myFile = SD.open("DATOS.csv", FILE_WRITE);
       if (myFile) {
-        myFile.println("FECHA,HORA,TENSION A,TENSION B,TENSION C,CORRIENTE A,CORRIENTE B,CORRIENTE C");
+        myFile.println("FECHA,HORA,TENSION A,TENSION B,TENSION C,CORRIENTE A,CORRIENTE B,CORRIENTE C,POTENCIA A,POTENCIA B,POTENCIA C");
         myFile.close();
       } else {
         contenido1="Error creando:";
@@ -297,7 +302,7 @@ void Lcd_Cursor(){
               int valor1 = 75*paso;
               byte ent_valor1 = valor1*0.1;
               byte un_valor1 = valor1 - (ent_valor1 * 10);
-              lcd.print(ent_valor1);lcd.print(".");lcd.print(un_valor1);lcd.print(" W");
+              lcd.print(ent_valor1);lcd.print(".");lcd.print(un_valor1);lcd.print(" Kw");
       break;
     }
     //--------- EST_LEFT ---------
@@ -339,16 +344,6 @@ void Lcd_Cursor(){
     else if(paso == 16){lcd.write(3);}
     else {lcd.write(1);}
   }
-  
-  /*
-  if(paso>=10){
-    lcd.setCursor(14,0);
-    lcd.print(paso);
-  }else if(paso<10){
-    lcd.setCursor(14,0);
-    lcd.print(paso);lcd.print(" ");
-  }
-  */
   
 }
 
@@ -469,6 +464,8 @@ void Automatico(){
   Calculo_modbus();
   //Visual_Modbus();
   Escritura_SD();
+  lcd.setCursor(0,1);
+  lcd.print(Potencia[0]);lcd.print("W      ");   
   if(leer == true){
     byte rele1 = EEPROM.read(direccion);
     byte rele2 = EEPROM.read(direccion+1);
@@ -478,6 +475,12 @@ void Automatico(){
     Wire.beginTransmission(PCF2);
     Wire.write(rele2);
     Wire.endTransmission();
+    int valor1 = 75*P_sig;
+    byte ent_valor1 = valor1*0.1;
+    byte un_valor1 = valor1 - (ent_valor1 * 10);
+    lcd.setCursor(0,0);
+    lcd.print("ACTUAL: ");
+    lcd.print(ent_valor1);lcd.print(".");lcd.print(un_valor1);lcd.print("Kw");
     uint8_t segs = HoraFecha.second();
     uint8_t mins = HoraFecha.minute();
     uint8_t hors = HoraFecha.hour();
@@ -530,7 +533,6 @@ void Automatico(){
   if((HoraFecha.second()== set_segundo)&&(HoraFecha.minute()== set_minuto)&&(HoraFecha.hour() == set_hors)){
     //Vuelve a repetir el leer
     if(fin == 1){
-      
       menu_conf = true;
       menu_auto = false;
       menu_manu = false;
@@ -563,7 +565,10 @@ void Manual(){
   Modbus();
   Calculo_modbus();
   //Visual_Modbus();
-  Escritura_SD();
+  Escritura_SD();     
+  lcd.setCursor(0,1);
+  lcd.print(Potencia[0]);lcd.print("W      ");
+  
   if(est_left == 1){
       menu_conf = true;
       menu_auto = false;
@@ -650,10 +655,14 @@ void Escritura_SD(){
     myFile.print(",");
   }
   for(byte z=0 ; z<3 ; z++){
+    myFile.print(Corriente[z]);
+    myFile.print(",");
+  }
+  for(byte z=0 ; z<3 ; z++){
     if(z==2){
-      myFile.println(Corriente[z]);
+      myFile.println(Potencia[z]);
     }else{
-      myFile.print(Corriente[z]);
+      myFile.print(Potencia[z]);
       myFile.print(",");
     }
   }
@@ -676,24 +685,29 @@ void Visual2(){    //Configuro lo que se visualizara en el LCD
 }
 
 void Modbus(){
-  for(byte f=1 ; f<3 ; f++){
+  for(byte f=1 ; f<4 ; f++){
     digitalWrite(4, HIGH);
     if(f==1){
       Serial2.write(InfoTension, 8);
     }else if(f==2){
       Serial2.write(InfoCorriente, 8);
+    }else if(f==3){
+      Serial2.write(InfoPotencia, 8);
     }
     Serial2.flush();
     digitalWrite(4,LOW);
-    delay(100);
+    delay(50);
     byte g=0;
     while(Serial2.available()>0){
       int datos = Serial2.read();
       g++;
       if((g>3)&&(g<16)){
-        switch(f){
-          case 1: datT[g-4]=datos; break;
-          case 2: datC[g-4]=datos; break;
+        if(f==1){
+            datT[g-4]=datos;
+        }else if(f==2){
+            datC[g-4]=datos;
+        }else if(f==3){
+            datP[g-4]=datos;
         }
       }
     }
@@ -701,20 +715,10 @@ void Modbus(){
 }
 
 void Calculo_modbus(){
-  byte a,b,c,d;
   byte i=0;
   byte salto=0;
-  boolean mod = 0;   // 0--> Tension  ; 1--> Corriente  ;
-  unsigned long m;
-  unsigned long VALOR;
-  unsigned long c1;
-  byte e;
-  int ex;
-  byte d2;
-  byte d3;
-  int c2;
-  byte c3;
-  for(byte z=0 ; z<6 ; z++){
+  byte mod = 0;   // 0--> Tension  ; 1--> Corriente  ; 2--> Potencia
+  for(byte z=0 ; z<9 ; z++){
     if(mod == 0){
       a=datT[salto];
       b=datT[1+salto];
@@ -725,31 +729,46 @@ void Calculo_modbus(){
       b=datC[1+salto];
       c=datC[2+salto];
       d=datC[3+salto];
+    }else if(mod == 2){
+      a=datP[salto];
+      b=datP[1+salto];
+      c=datP[2+salto];
+      d=datP[3+salto];
     }
-    e = ((a*0x100)+b)>>7;
-    ex = e-126;
-    d2 = b;
-    c1 =d2*65536;
-    d3 = c;
-    c2 = d3*256;
-    c3 = d;
+    ex = 0;
+    m=0;
+    a &= 0x7F;
+    ex = ((a*0x100)+b)>>7;
+    ex = ex-126;
     if(((b>>7)&(0x1))== 1){
-      m= c1+c2+c3;
+      m = b*0x10000;
+      m = m + c*0x100;
+      m = m + d;
     }else{
-      m= 8388608+c1+c2+c3;
+      m = 0x800000;
+      m = m + b*0x10000;
+      m = m + c*0x100;
+      m = m + d;
     }
-    VALOR = pow(2,ex)*m;
-    VALOR = VALOR*0.0000059604;
+    if(ex <= 24 ){
+      m = m/pow(2,24-ex);
+    }
     if(mod == 0){
-      Tension[i]= VALOR;
+      Tension[i]= m;
     }else if(mod == 1){
-      Corriente[i]=VALOR;  
+      Corriente[i]=m;  
+    }else if(mod == 2){
+      Potencia[i]=m;
+      
     }
-    
     i++;
     salto = salto + 4;
-    if(z==3){
+    if(z==2){
       mod = 1;
+      salto = 0;
+      i=0;
+    }else if(z== 5){
+      mod = 2;
       salto = 0;
       i=0;
     }

@@ -1,0 +1,12 @@
+Los pasos de salida no se encuentran en la SD, ahora estan guardados en la memoria EEPROM
+Se adjunta el programa con los pasos actuales de esta version
+Se agrego el uso de 4 pulsadores para menu
+Se encuentra funcionando el menu de AUTOMATICO, como el de MANUAL
+En "AUTOMATICO" al iniciar se muestra en la pantalla el paso que esta realizando y al cambiar se actualiza, tambien se muestra la potencia del canal 
+Tambien se mejoro el uso del calculo de CRC y se agrego otro dato a obtener del Modbus que es la Potencia de los 3 canales
+
+
+OBSERVACIONES Y MEJORAS
+El proceso del calculo de crc no da valores exactos debido al procesador, se debe mejorar la precision
+Mejorar el manejo del menu automatico y sus variables
+Mejorar la toma de datos del modbus en velocidad
