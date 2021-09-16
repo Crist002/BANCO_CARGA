@@ -127,6 +127,8 @@ uint8_t paso = 1;
 uint8_t pag_anterior = 0;
 uint8_t leer = 1;
 uint8_t compsegundo;
+uint32_t tiempo1;
+uint32_t tiempo2;
 //Variables de salida
 uint8_t tiempo = 1;
 uint8_t P_min = 1;
@@ -142,7 +144,10 @@ uint8_t set_segundo;
 uint8_t set_minuto;
 uint8_t set_hors;
 uint8_t i2c_tiempo_ok = 0;
-
+//PARA VISUALIZAR EN DISPLAY
+uint8_t dif_hora = 0;
+uint8_t dif_minuto = 0;
+uint8_t dif_segundo = 0;
 //Variables Creacion de Caracteres
 char customChar[] = {
   0x00,
@@ -563,28 +568,34 @@ void Lcd_Cursor(void){
       break;
       case 6: P_modo = paso; pag_menu = 3; cursor_fila = 0;
       break;
-      case 8: lcd_clear();menu_conf = 0;menu_manu = 1;
+      case 8: //AL DAR EL OK EN LA SELECCION DE POTENCIA MANUAL
+
+    	  	  lcd_clear();
+    	  	  uint8_t valor1 = 7.5*paso;
+    	  	  uint8_t valor2;
+    	  	  if(paso % 2 == 0){
+    	  		  valor2 = 0;
+    	  	  }else {valor2 = 5;}
+    	  	  lcd_put_cur(0,0);
+    	  	  lcd_send_string("MAN");
+    	  	  lcd_put_cur(0, 8);
+    	  	  lcd_send_string("PASO:");
+    	  	  sprintf(buffer,"%2d",paso);
+    	  	  lcd_send_string(buffer);
+    	  	  lcd_put_cur(1, 0);
+    	  	  lcd_send_string("POTENCIA:");
+    	  	  sprintf(buffer,"%3d.%1d",valor1,valor2);
+    	  	  lcd_send_string(buffer);
+    	  	  lcd_send_string("Kw");
+    	  	  menu_conf = 0;menu_manu = 1;
               direccion = 2*paso;
               pcf1_send(salidaReles[direccion]);
               pcf2_send(salidaReles[direccion+1]);
-              lcd_put_cur(0, 0);
-              lcd_send_string("POT: ");
-              uint16_t valor1 = 75*paso;
-              uint8_t ent_valor1 = valor1*0.1;
-              uint8_t un_valor1 = valor1 - (ent_valor1 * 10);
-              sprintf(buffer,"%d",ent_valor1);
-              lcd_send_string(buffer);
-              //lcd.print(ent_valor1);
-              lcd_send_string(".");
-              sprintf(buffer,"%d",un_valor1);
-              lcd_send_string(buffer);
-              //lcd.print(un_valor1);
-              lcd_send_string(" Kw");
+              compsegundo = time.seconds + 20;
               HAL_GPIO_WritePin(modbus_GPIO_Port, modbus_Pin, 1);
               h_envio = 1;
               h_calculo = 0;
               HAL_UART_Transmit_DMA(&huart3, mensaje1, 8);
-
       break;
     }
     //--------- EST_LEFT ---------
@@ -842,33 +853,61 @@ void Procesado(){
 	}
 }
 
-void MuestraTiempo(){
-	sprintf(buffer, "%02d:%02d:%02d", time.hour, time.minutes, time.seconds);
-	compsegundo = time.seconds;
-	lcd_put_cur(1, 0);
+void MuestraDisplay(){
+	uint8_t P_uso = P_sig - 1;
+	uint8_t valor1 = 7.5*P_uso;
+	uint8_t valor2;
+
+	if(P_uso % 2 == 0){
+		valor2 = 0;
+	}else {valor2 = 5;}
+	tiempo1 = time.hour*3600 + time.minutes*60 + time.seconds;
+	tiempo2 = set_hors*3600 + set_minuto*60 + set_segundo;
+	uint16_t diferencia;
+	if(tiempo2 > tiempo1 ){
+		diferencia = tiempo2 - tiempo1;
+		if((diferencia/60) < 60){
+			dif_hora = 0;
+			dif_minuto = diferencia/60;
+			dif_segundo = diferencia - dif_minuto*60;
+		}else{
+			dif_hora = diferencia/3600;
+			dif_minuto = diferencia/60;
+			dif_minuto = dif_minuto - dif_hora*60;
+			dif_segundo = diferencia - (dif_hora*3600 + dif_minuto*60);
+		}
+	}else if(tiempo1 == tiempo2){
+		dif_hora = 0;
+		dif_segundo = 0;
+		dif_segundo = 0;
+	}else{
+
+	}
+	lcd_put_cur(0,0);
+	lcd_send_string("AUTO");
+	lcd_put_cur(0, 8);
+	lcd_send_string("PASO:");
+	sprintf(buffer,"%2d",P_uso);
 	lcd_send_string(buffer);
+	lcd_put_cur(1, 0);
+	sprintf(buffer,"%3d.%1d",valor1,valor2);
+	lcd_send_string(buffer);
+	lcd_send_string("Kw");
+	sprintf(buffer, "%02d:%02d:%02d", dif_hora, dif_minuto, dif_segundo);
+	lcd_put_cur(1, 8);
+	lcd_send_string(buffer);
+	compsegundo = time.seconds;
 }
 
 void Automatico(void){
-	if(time.seconds != compsegundo) {MuestraTiempo(); Escritura_SD();}
-	Procesado();
+
   //Modbus();
   //lcd_put_cur(1, 0);
   //lcd.print(Potencia[0]);lcd_send_string("W      ");
   if(leer == 1){
 	pcf1_send(salidaReles[direccion]);
 	pcf2_send(salidaReles[direccion+1]);
-    uint16_t valor1 = 75*P_sig;
-    uint8_t ent_valor1 = valor1*0.1;
-    uint8_t un_valor1 = valor1 - (ent_valor1 * 10);
-    lcd_put_cur(0, 0);
-    lcd_send_string("ACTUAL: ");
-    sprintf(buffer,"%d",ent_valor1);
-    lcd_send_string(buffer);//lcd.print(ent_valor1);
-    lcd_send_string(".");
-    sprintf(buffer,"%d",un_valor1);
-    lcd_send_string(buffer);//lcd.print(un_valor1);
-    lcd_send_string("Kw");
+
     set_segundo = time.seconds;
     set_minuto = time.minutes;
     set_minuto = set_minuto + tiempo;
@@ -916,6 +955,8 @@ void Automatico(void){
       }
     }else{fin = 1;}
   }
+  if(time.seconds != compsegundo) {MuestraDisplay(); Escritura_SD();}
+  Procesado();
   if((time.seconds== set_segundo)&&(time.minutes== set_minuto)&&(time.hour == set_hors)){
     //Vuelve a repetir el leer
     if(fin == 1){
@@ -944,7 +985,7 @@ void Automatico(void){
 
 
 void Manual(void){
-
+	if(time.seconds != compsegundo) {Escritura_SD();compsegundo = time.seconds;}
 	Procesado();
   //Modbus();
   //lcd_put_cur(1, 0);
@@ -1068,7 +1109,7 @@ void Lcd_Menu(void){
     h_calculo = 0;
     HAL_UART_Transmit_DMA(&huart3, mensaje1, 8);
 
-  }else if(pag_menu == 8){
+  }else if(pag_menu == 8){		//AL DAR EL OK EN MENU "MANUAL"
     uint16_t valor1 = 75*paso;
     uint8_t ent_valor1 = valor1*0.1;
     uint8_t un_valor1 = valor1 - (ent_valor1 * 10);
